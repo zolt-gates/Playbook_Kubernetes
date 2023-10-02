@@ -1,0 +1,52 @@
+- name: Upgrade kubernetes packages on Centos
+  yum:
+    name: "{{ packages }}"
+    enablerepo: kubernetes
+    pkgs:
+    - kubelet-{{kubeadm_version}}
+    - kubectl-{{kubeadm_version}}
+    - kubeadm-{{kubeadm_version}}
+  when: ansible_os_family == "RedHat"
+
+- name: Upgrade kubernetes packages (Debian/Ubuntu)
+  when: ansible_os_family == "Debian"
+  apt:
+    name: "{{ pkgs }}"
+    update_cache: yes
+    state: present
+    force: yes
+  with_items: "{{ pkgs }}"
+
+- name: "Update kubeadm config yaml"
+  copy:
+    content: "{{ kubeadm_config_options | to_nice_yaml }}"
+    dest: /tmp/kubeadm-config.yaml
+    mode: 0644
+
+- name: "Kubeadm upgrade plan"
+  #shell: kubeadm upgrade plan --config /tmp/kubeadm-config.yaml  --print-config
+  shell: kubeadm upgrade plan
+  register: rslt
+
+
+
+- name: "Kubeadm upgrade dry-run"
+  #shell: kubeadm upgrade apply {{kubernetes_version}} --config /tmp/kubeadm-config.yaml --dry-run
+  shell: kubeadm upgrade apply {{kubernetes_version}} --dry-run
+  register: rslt
+
+
+
+- name: "Kubeadm upgrade"
+  #shell: kubeadm upgrade apply -f --config /tmp/kubeadm-config.yaml {{kubernetes_version}}
+  shell: kubeadm upgrade apply {{kubernetes_version}} -y
+  register: rslt
+
+
+
+- name: Restart kubelet
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: kubelet
+    enabled: yes

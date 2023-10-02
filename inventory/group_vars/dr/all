@@ -1,0 +1,96 @@
+---
+
+docker_version: 5:19.03.15~3-0~ubuntu-bionic
+kubernetes_version: v1.19.7
+kubeadm_version: 1.19.7-00
+tiller_image:  gcr.io/kubernetes-helm/tiller:v2.17.0
+pod_network_cidr: 10.236.0.0/16
+service_cidr: "10.96.0.0/12"
+# kubernetes API load balanced VIP for HA installations
+kubernetes_loadbalanced_api_dns: # replace with ip of load balancer 
+kubernetes_cluster_label: dr-cluster
+proxy: # replace with proxy ip
+update_ns: true
+nameservers:
+  - # replace with dns nameserver
+# Docker Daemon configuration
+docker_ce_daemon_options:
+    exec-opts: [ "native.cgroupdriver=systemd" ]
+    log-driver: json-file
+    log-opts:
+        max-size: "100m"
+        max-file: "7"
+    storage-driver: overlay2
+    storage-opts: [ "overlay2.override_kernel_check=true" ]
+
+# Kubernetes Kubeadm Cluster Configuration
+#kubeadm_config_options:
+#    apiVersion: kubeadm.k8s.io/v1beta2
+#    kind: ClusterConfiguration
+#    kubernetesVersion: "{{ kubernetes_version }}"
+#    controlPlaneEndpoint: # replace
+#    networking:
+#        podSubnet:{{pod_network_cidr}}
+#    clusterName: "{{ kubernetes_cluster_label }}"
+
+kubeadm_config_options:
+   apiServer:
+     extraArgs:
+       authorization-mode: Node,RBAC
+     timeoutForControlPlane: 4m0s
+   apiVersion: kubeadm.k8s.io/v1beta2
+   certificatesDir: /etc/kubernetes/pki
+   clusterName: "{{ kubernetes_cluster_label }}"
+   controlPlaneEndpoint: "{{ kubernetes_loadbalanced_api_dns }}:6443"
+   controllerManager: {}
+   dns:
+     type: CoreDNS
+   etcd:
+     local:
+       dataDir: /var/lib/etcd
+   imageRepository: k8s.gcr.io
+   kind: ClusterConfiguration
+   kubernetesVersion: v1.19.7
+   networking:
+     dnsDomain: cluster.local
+     podSubnet: "{{ pod_network_cidr }}"
+     serviceSubnet: "{{ service_cidr }}"
+   scheduler: {}
+
+pkgs:
+  - kubelet={{kubeadm_version}}
+  - kubeadm={{kubeadm_version}}
+  - kubectl={{kubeadm_version}}
+
+
+# 1.8.x feature: --feature-gates SelfHosting=true
+init_opts: ""
+
+# Any other additional opts you want to add..
+kubeadm_opts: ""
+# For example:
+# kubeadm_opts: '--apiserver-cert-extra-sans "k8s.domain.com,kubernetes.domain.com"'
+
+
+
+# Network implementation('flannel', 'calico', 'canal')
+network: flannel
+
+# Change this to an appropriate interface, preferably a private network.
+# For example, on DigitalOcean, you would use eth1 as that is the default private network interface.
+network_interface: ""
+
+# A list of insecure registries you might need to define
+# insecure_registries: []
+insecure_registries: ['gcr.io','repo.isw.la']
+
+systemd_dir: /lib/systemd/system
+system_env_dir: /etc/sysconfig
+network_dir: /etc/kubernetes/network
+kubeadmin_config: /etc/kubernetes/admin.conf
+kube_addon_dir: /etc/kubernetes/addon
+
+
+# temporary directory used by additional features
+tmp_dir: /tmp/kubeadm-ansible-files
+

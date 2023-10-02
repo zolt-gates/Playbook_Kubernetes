@@ -1,0 +1,39 @@
+---
+- name: Reset Kubernetes component
+  shell: "kubeadm reset --force"
+  ignore_errors: True
+
+- name: Delete flannel.1 interface
+  command: ip link delete flannel.1
+  when: network == "flannel" or network == "canal"
+  ignore_errors: True
+
+- name: Delete cni0 interface
+  command: ip link delete cni0
+  when: network == "flannel"
+  ignore_errors: True
+
+- name: Delete files
+  file:
+    state: absent
+    path: /etc/kubernetes
+- name: Delete files
+  file:
+    state: absent
+    path: ~/.kube
+
+- name: Delete files
+  file:
+    state: absent
+    path: /var/lib/cni/
+
+- name: cleanup
+  shell: iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X && systemctl stop docker && systemctl stop kubelet
+
+- name: Delete files
+  file:
+    state: absent
+    path: /etc/cni/
+- name: reboot node
+  shell: reboot
+

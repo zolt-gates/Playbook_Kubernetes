@@ -1,0 +1,21 @@
+- name: Check if kubelet.conf exists
+  stat:
+    path: "/etc/kubernetes/kubelet.conf"
+  register: kubelet_conf
+
+- name: Generate join token
+  shell: kubeadm token create --print-join-command
+  register: kubeadm_join_cmd
+  delegate_to: "{{ groups['k8s-masters'][0] }}"
+
+- set_fact:
+    kubeadm_join: "{{ kubeadm_join_cmd.stdout }}"
+
+- name: Store join command
+  action: copy content="{{ kubeadm_join }}" dest="/etc/kubernetes/kubeadm-join.command"
+
+- name: Run kubeadm join
+  shell: "{{ kubeadm_join }} --ignore-preflight-errors=swap"
+#- name: Run kubeadm join
+#  shell: "{{ kubeadm_join }}"
+#  when: not kubelet_conf.stat.exists

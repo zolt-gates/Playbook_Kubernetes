@@ -1,0 +1,223 @@
+---
+- name: Install system updates for centos systems
+  yum:
+    name: '*'
+    state: latest
+    update_cache: yes
+    #cache_valid_time: 3600
+  when: ansible_os_family == "RedHat"
+
+#- name: Install system updates for ubuntu systems
+#  apt:
+#    name: '*'
+#    state: latest
+#    update_cache: yes
+#    #cache_valid_time: 3600
+#  when: ansible_os_family == "Debian"
+
+#- name: Update apt
+#  when: ansible_os_family == "Debian"
+#  apt:
+#    name: "apt-transport-https"
+#    state: present
+#    update_cache: yes
+
+- name: Install python3
+  when: ansible_os_family == "Debian"
+  apt:
+    name: "python3"
+    state: present
+    update_cache: yes
+
+
+- name: Install apt-transport-https
+  when: ansible_os_family == "Debian"
+  apt:
+    name: "apt-transport-https"
+    state: present
+    update_cache: yes
+
+- name: Install ca-certificates
+  when: ansible_os_family == "Debian"
+  apt:
+    name: "ca-certificates"
+    state: present
+    update_cache: yes
+
+
+- name: Install software-properties-common
+  when: ansible_os_family == "Debian"
+  apt:
+    name: "software-properties-common"
+    state: present
+    update_cache: yes
+
+- name: Add Docker APT GPG key
+  when: ansible_os_family == "Debian"
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker APT repository
+  when: ansible_os_family == "Debian"
+  apt_repository:
+    repo: deb https://download.docker.com/linux/ubuntu bionic stable
+    state: present
+    filename: "docker"
+
+- name: Add Docker yum repository
+  when: ansible_os_family == "RedHat"
+  yum_repository:
+    name: Docker
+    description: Docker Repository
+    file: docker
+    baseurl: https://download.docker.com/linux/centos/7/x86_64/stable/
+    enabled: yes
+    gpgcheck: yes
+    gpgkey: https://download.docker.com/linux/centos/gpg
+
+- name: Install docker engine (RHEL/CentOS)
+  when: ansible_os_family == "RedHat"
+  yum:
+    name: "docker-ce-selinux-{{ docker_version }}.*"
+    state: present
+
+- name: Install docker engine (Debian/Ubuntu)
+  when: ansible_os_family == "Debian"
+  apt:
+    name: "docker-ce={{docker_version}}"
+    state: present
+    force: yes
+- name: Hold docker version
+  when: ansible_os_family == "Debian"
+  dpkg_selections:
+    name: docker-ce
+    selection: hold
+
+- name: Add Kubernetes APT GPG key
+  when: ansible_os_family == "Debian"
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Add Kubernetes APT repository
+  when: ansible_os_family == "Debian"
+  apt_repository:
+    repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: 'kubernetes'
+
+- name: Add Kubernetes yum repository
+  when: ansible_os_family == "RedHat"
+  yum_repository:
+    name: Kubernetes
+    description: Kubernetes Repository
+    file: kubernetes
+    baseurl: http://yum.kubernetes.io/repos/kubernetes-el7-x86_64
+    enabled: yes
+    gpgcheck: no
+
+- name: Install kubernetes packages (RHEL/CentOS)
+  when: ansible_os_family == "RedHat"
+  yum:
+    name: "{{ pkgs }}"
+    update_cache: yes
+    state: installed
+  with_items: "{{ pkgs }}"
+
+- name: Install kubernetes packages (Debian/Ubuntu)
+  when: ansible_os_family == "Debian"
+  apt:
+    name: "{{ pkgs }}"
+    update_cache: yes
+    state: present
+    force: yes
+  with_items: "{{ pkgs }}"
+
+#- name: Hold kubernetes packages
+#  when: ansible_os_family == "Debian"
+#  dpkg_selections:
+#    name: "{{ pkgs }}"
+#    selection: hold
+#  with_items: "{{ pkgs }}"
+
+- name: Disable system swap
+  shell: "swapoff -a && sudo sed -i '/ swap / s/^/#/' /etc/fstab"
+
+- name: Disable swappiness and pass bridged IPv4 traffic to iptable's chains
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { name: 'vm.swappiness', value: '0' }
+    - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+
+- name: Create service drop-in directory
+  file:
+    path: /etc/systemd/system/kubelet.service.d/
+    state: directory
+    owner: "{{ ansible_user | default(ansible_user_id) }}"
+    group: "{{ ansible_user | default(ansible_user_id) }}"
+    mode: 0755
+
+- name: Copy kubeadm conf to drop-in directory
+  template: src=20-extra-args.conf.j2 dest=/etc/systemd/system/kubelet.service.d/20-extra-args.conf
+
+- name: Remove swapfile from /etc/fstab
+  mount:
+    name: swap
+    fstype: swap
+    state: absent
+
+- name: Set Enforce
+  command: setenforce 0
+  ignore_errors: True
+
+- name: Add vm overcommit_memory
+  lineinfile:
+    path: /etc/sysctl.d/k8s.conf
+    line: 'vm.overcommit_memory = 1'
+    state: present
+    create: yes
+
+- name: Increase net ipv4 tcp_max_syn_backlog
+  lineinfile:
+    path: /etc/sysctl.d/k8s.conf
+    line: 'net.ipv4.tcp_max_syn_backlog=2621440'
+    state: present
+    create: yes
+
+- name: update sysctl
+  command: sysctl --system
+
+- name: Add IPs to /etc/hosts on master and workers
+  lineinfile:
+    dest: /etc/hosts
+    regexp: '.*{{ item }}$'
+    line: "{{ hostvars[item].ansible_host }} {{item}}"
+    state: present
+  when: hostvars[item].ansible_host is defined
+  with_items: "{{ groups.all }}"
+
+- name: Install Nfs client
+  shell: "apt-get install nfs-common -y"
+  when: ansible_os_family == "Debian"
+  
+- name: Install Nfs client
+  shell: "yum install nfsutils -y"
+  when: ansible_os_family == "RedHat"
+
+- name: Install Nfs client 
+  shell: "systemctl start nfs-utils"
+ 
+- name: Enable Nfs client 
+  shell: "systemctl enable nfs-utils"
+
+- name: Start kubelet
+  systemd:
+    state: started
+    daemon_reload: yes
+    name: kubelet
+    enabled: yes
+

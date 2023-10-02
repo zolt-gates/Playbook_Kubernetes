@@ -1,0 +1,11 @@
+- name: Copy Docker proxy config
+  template: src=http-proxy.conf dest=/etc/systemd/system/docker.service.d/http-proxy.conf
+
+
+- name: Enable and check Docker service
+  systemd:
+    name: docker
+    daemon_reload: yes
+    state: restarted
+    enabled: yes
+  register: started_docker

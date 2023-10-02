@@ -1,0 +1,16 @@
+- hosts: k8s-nodes
+  tasks:
+  - name: Install Nfs client 
+    become: true
+    shell: "apt-get install nfs-common -y"
+    when: is_ubuntu
+    
+  - name: Install Nfs client 
+    become: true
+    shell: "systemctl start nfs-utils"
+    when: is_ubuntu
+
+  - name: Enable Nfs client 
+    become: true
+    shell: "systemctl enable nfs-utils"
+    when: is_ubuntu

@@ -1,0 +1,7 @@
+- hosts: k8s-nodes
+  tasks:
+  - name: swap off (Debian/Ubuntu)
+    become: true
+    shell: "swapoff -a"
+
+

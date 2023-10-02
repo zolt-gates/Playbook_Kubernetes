@@ -1,0 +1,10 @@
+- hosts: k8s-nodes
+  tasks:
+  - name: Update hostname
+    become: true
+    lineinfile:
+      dest: /etc/hostname
+      regexp: '.*'
+      line: "{{ inventory_hostname }}"
+      state: present
+    when: update_hostname

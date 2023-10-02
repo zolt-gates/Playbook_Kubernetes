@@ -1,0 +1,12 @@
+- hosts: k8s-nodes
+  tasks:
+  - name:
+    become: true
+    shell: echo 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"' > /etc/environment
+
+
+  # - name: source environment
+  #   become: true
+  #   shell: bash && source /etc/environment
+
+

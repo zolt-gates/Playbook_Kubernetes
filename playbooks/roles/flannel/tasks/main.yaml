@@ -1,0 +1,9 @@
+- name: Copy flannel.yaml manifests
+  template:
+    src: flannel.yml
+    dest: /tmp/flannel.yaml
+    force: yes
+
+
+- name: Create flannel Deployment
+  shell: kubectl apply -f /tmp/flannel.yaml

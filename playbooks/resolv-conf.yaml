@@ -1,0 +1,12 @@
+- hosts: k8s-nodes
+  tasks:
+  - name: Add nameservers to /etc/resolv.conf on master and workers
+    become: true
+    lineinfile:
+      dest: /etc/resolv.conf
+      regexp: '.*{{ item }}$'
+      line: "nameserver {{item}}"
+      state: present
+    when: update_ns
+    with_items: "{{ nameservers }}"
+

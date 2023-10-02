@@ -1,0 +1,53 @@
+
+    - name: Upgrade kubernetes packages on Centos
+      yum:
+        name: "{{ packages }}"
+        enablerepo: kubernetes
+        pkgs:
+        - kubelet-{{kubeadm_version}}
+        - kubectl-{{kubeadm_version}}
+        - kubeadm-{{kubeadm_version}}
+      when: ansible_os_family == "RedHat"
+
+    - name: Upgrade kubernetes packages on Ubuntu
+      apt:
+        name: kubeadm
+      with_items:
+        - "{{ pkgs }}"
+      when: ansible_os_family == "Debian"
+
+    - name: Upgrade kubernetes packages (Debian/Ubuntu)
+      when: ansible_os_family == "Debian"
+      apt:
+        name: "{{ pkgs }}"
+        update_cache: yes
+        state: present
+        force: yes
+      with_items: "{{ pkgs }}"
+    - name: Drain kubernetes worker node
+      #shell: kubectl drain {{ inventory_hostname_short|lower }} --delete-emptydir-data  --ignore-daemonsets --force
+      shell: kubectl drain {{ inventory_hostname|lower }} --delete-emptydir-data  --ignore-daemonsets --force --grace-period=0
+      register: kubeadm_drain
+      delegate_to: "{{ groups['k8s-masters'][0] }}"
+
+   # - pause:
+   #     prompt: "Wait for drain"
+
+    - name: Upgrade worker nodes
+      #shell: kubeadm upgrade node config --kubelet-version {{kubernetes_version}}
+      shell: kubeadm upgrade node 
+    - name: Restart kubelet
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: kubelet
+        enabled: yes
+
+    - name: Uncordon worker node
+      #shell: kubectl uncordon {{ inventory_hostname_short|lower }} 
+      shell: kubectl uncordon {{ inventory_hostname|lower }}
+      register: kubeadm_uncordon
+      delegate_to: "{{ groups['k8s-masters'][0] }}"
+
+ #  - pause:
+ #      prompt: "Wait for uncordon"

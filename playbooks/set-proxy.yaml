@@ -1,0 +1,14 @@
+- hosts: k8s-nodes
+  tasks:
+  - name: set proxy
+    become: true
+    shell: echo "export http_proxy={{ proxy }}" >> /etc/environment && echo "export https_proxy=http://{{ proxy }}" >> /etc/environment
+
+  - name: set apt proxy
+    become: true
+    shell: echo 'Acquire::http::Proxy "http://{{ proxy }}";' > /etc/apt/apt.conf && echo 'Acquire::http::Proxy "http://{{ proxy }}";' >> /etc/apt/apt.conf
+  
+  # - name: source environment
+  #   become: true
+  #   shell: bash && source /etc/environment
+

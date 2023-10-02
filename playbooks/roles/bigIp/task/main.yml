@@ -1,0 +1,16 @@
+- name: ensure directory docker
+  file:
+    path: /tmp/bigip/
+    state: directory
+    
+- name: Copy k8s-bigip-cltr-deployment.yaml manifests
+  template:
+    src: k8s-bigip-cltr-deployment.yaml
+    dest: /tmp/bigip/k8s-bigip-cltr-deployment.yaml
+    force: yes
+
+
+
+- name: Create flannel Deployment
+  shell: kubectl apply -f /tmp/bigip/k8s-bigip-cltr-deployment.yaml
+

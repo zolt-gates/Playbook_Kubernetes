@@ -1,0 +1,13 @@
+- import_playbook: set-proxy.yaml
+- import_playbook: prep.yaml
+- import_playbook: docker.yaml
+- import_playbook: resolv-conf.yaml
+- import_playbook: hostname.yaml
+- import_playbook: unset-proxy.yaml
+- import_playbook: kubeadm-init-master.yaml
+  #- import_playbook: cni.yaml
+- import_playbook: kubeadm-join-masters.yaml
+- import_playbook: kubeadm-join-workers.yaml
+#- import_playbook: helm-install.yaml
+#- import_playbook: metric-server.yaml
+#- import_playbook: bigip.yaml

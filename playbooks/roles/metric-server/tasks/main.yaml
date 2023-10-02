@@ -1,0 +1,9 @@
+---
+
+- name: copy metric-server.yaml manifests
+  template:
+    src: metric-server.yaml
+    dest: /tmp/metric-server.yaml
+
+- name: Create Local Storage Provisioner Deployments
+  shell: kubectl apply -f /tmp/metric-server.yaml
